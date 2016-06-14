@@ -11,7 +11,6 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.GridLayout;
 import android.widget.ImageView;
 
 import com.squareup.picasso.Picasso;
@@ -26,9 +25,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.zip.Inflater;
+
 
 /**Main activity consist of grid layout that diplay the particular movie poster
  *sorted either by popularity or by rating. The main screen can be scrolled down
@@ -83,10 +81,10 @@ public class MainActivityFragment extends Fragment {
 
     public void UpdateMovie(){
         FetchMovie fetchMovie = new FetchMovie();
-        fetchMovie.execute();
+        fetchMovie.execute("/movie/popular");
     }
 
-    public class FetchMovie extends AsyncTask<Void, Void, Void> {
+    public class FetchMovie extends AsyncTask<String, Void, HashMap<String,String>> {
         // These are the names of the JSON objects that need to be extracted.
         final String RESULT = "results";
         final String POSTER_PATH = "poster_path";
@@ -105,7 +103,7 @@ public class MainActivityFragment extends Fragment {
         final String VOTE_AVERAGE = "vote_average";
 
         @Override
-        protected Void doInBackground(Void... params) {
+        protected HashMap<String,String> doInBackground(String... params) {
 
             //These two need to be declared outside the try/catch
             //so they can be closed in the finally block
@@ -123,7 +121,7 @@ public class MainActivityFragment extends Fragment {
             final String MOVIE_BASE_URL = "https://api.themoviedb.org/3";
 
             //Construct URL for the query search
-            Uri builtUri = Uri.parse(MOVIE_BASE_URL + POPULAR_MOVIE).buildUpon()
+            Uri builtUri = Uri.parse(MOVIE_BASE_URL + params[0]).buildUpon()
                     .appendQueryParameter("api_key", API_KEY)
                     .build();
             try {
@@ -172,12 +170,7 @@ public class MainActivityFragment extends Fragment {
                 }
             }
             try {
-                GetMovieDataFromJson(jsonresult,0);
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-            try {
-                GetMoviePoster(jsonresult, 0);
+                return GetMovieDataFromJson(jsonresult,0);
             } catch (JSONException e) {
                 e.printStackTrace();
             }
@@ -186,18 +179,22 @@ public class MainActivityFragment extends Fragment {
 
 
         @Override
-        protected void onPostExecute(Void aVoid) {
-            super.onPostExecute(aVoid);
+        protected void onPostExecute(HashMap<String,String> resultSet) {
+            Log.v("Result HashMap",resultSet.get(POSTER_PATH));
+            try {
+                GetMoviePoster(resultSet.get(POSTER_PATH), 0);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
         }
 
-        private void GetMoviePoster(String url, int i) throws JSONException {
+        private void GetMoviePoster(String path, int i) throws JSONException {
             final String POSTER_BASE_URL = "http://image.tmdb.org/t/p";
             final String SIZE = "w185";
-            String posterPath = GetMovieDataFromJson(url,i).get(POSTER_PATH);
             //Construct URL for the query search
             Uri posterUrl = Uri.parse(POSTER_BASE_URL).buildUpon()
                     .appendPath(SIZE)
-                    .appendPath(posterPath)
+                    .appendEncodedPath(path)
                     .build();
             Log.v("Poster Link:",posterUrl.toString());
             //Display the movie poster to the ImageView
@@ -206,19 +203,18 @@ public class MainActivityFragment extends Fragment {
                     .into(posterView);
         }
         private HashMap<String,String> GetMovieDataFromJson(String movieJsonString, int num)throws JSONException{
+
             JSONObject jsonObject = new JSONObject(movieJsonString);
             JSONArray movieArray = jsonObject.getJSONArray(RESULT);
             JSONObject movieObject = movieArray.getJSONObject(num);
+            //Parsing Json to get the poster path and title
             String posterPath = movieObject.getString(POSTER_PATH);
             String movieTitle = movieObject.getString(TITLE);
 
             HashMap<String,String> resultSet = new HashMap<>();
-            resultSet.put(POSTER_PATH,posterPath);
+            resultSet.put(POSTER_PATH, posterPath);
             resultSet.put(TITLE,movieTitle);
-
-            Log.v(POSTER_PATH,posterPath);
-            Log.v(TITLE,movieTitle);
-
+            Log.v("Movie Title: ", resultSet.get(TITLE));
             return resultSet;
         }
     }
