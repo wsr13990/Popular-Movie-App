@@ -11,14 +11,24 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.GridLayout;
+import android.widget.ImageView;
+
+import com.squareup.picasso.Picasso;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.zip.Inflater;
 
 /**Main activity consist of grid layout that diplay the particular movie poster
  *sorted either by popularity or by rating. The main screen can be scrolled down
@@ -77,6 +87,22 @@ public class MainActivityFragment extends Fragment {
     }
 
     public class FetchMovie extends AsyncTask<Void, Void, Void> {
+        // These are the names of the JSON objects that need to be extracted.
+        final String RESULT = "results";
+        final String POSTER_PATH = "poster_path";
+        final String ADULT = "adult";
+        final String OVERVIEW = "overview";
+        final String RELEASE_DATE = "release_date";
+        final String GENRE_IDS = "genre_ids";
+        final String ID = "id";
+        final String ORIGINAL_TITLE = "original_title";
+        final String ORIGINAL_LANGUAGE = "original_language";
+        final String TITLE = "title";
+        final String BACKDROP_PATH ="backdrop_path";
+        final String POPULARITY = "popularity";
+        final String VOTE_COUNT = "vote_count";
+        final String VIDEO = "video";
+        final String VOTE_AVERAGE = "vote_average";
 
         @Override
         protected Void doInBackground(Void... params) {
@@ -109,7 +135,7 @@ public class MainActivityFragment extends Fragment {
 
                 //Read the input stream into string
                 InputStream inputStream = urlConnection.getInputStream();
-                StringBuffer buffer = new StringBuffer();
+                StringBuilder buffer = new StringBuilder();
                 if(inputStream == null){
                     //Nothing to do
                     return null;
@@ -127,13 +153,76 @@ public class MainActivityFragment extends Fragment {
                 jsonresult = buffer.toString();
                 Log.v(LOG_TAG,jsonresult);
 
-            } catch (MalformedURLException e) {
-                e.printStackTrace();
             } catch (IOException e) {
+                Log.e(LOG_TAG, "Error ", e);
+                // If the code didn't successfully get the movie data, there's no point in attemping
+                // to parse it.
+                return null;
+            } finally {
+                if(urlConnection != null){
+                    urlConnection.disconnect();
+                }
+                if(reader != null){
+                    try {
+                        reader.close();
+                    } catch (final IOException e) {
+                        Log.e(LOG_TAG,e.getMessage(),e);
+                        e.printStackTrace();
+                    }
+                }
+            }
+            try {
+                GetMovieDataFromJson(jsonresult,0);
+            } catch (JSONException e) {
                 e.printStackTrace();
             }
-
+            try {
+                GetMoviePoster(jsonresult, 0);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
             return null;
         }
+
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            super.onPostExecute(aVoid);
+        }
+
+        private void GetMoviePoster(String url, int i) throws JSONException {
+            final String POSTER_BASE_URL = "http://image.tmdb.org/t/p";
+            final String SIZE = "w185";
+            String posterPath = GetMovieDataFromJson(url,i).get(POSTER_PATH);
+            //Construct URL for the query search
+            Uri posterUrl = Uri.parse(POSTER_BASE_URL).buildUpon()
+                    .appendPath(SIZE)
+                    .appendPath(posterPath)
+                    .build();
+            Log.v("Poster Link:",posterUrl.toString());
+            //Display the movie poster to the ImageView
+            ImageView posterView = (ImageView)getActivity().findViewById(R.id.movie_poster_main);
+            Picasso.with(getActivity()).load(posterUrl)
+                    .into(posterView);
+        }
+        private HashMap<String,String> GetMovieDataFromJson(String movieJsonString, int num)throws JSONException{
+            JSONObject jsonObject = new JSONObject(movieJsonString);
+            JSONArray movieArray = jsonObject.getJSONArray(RESULT);
+            JSONObject movieObject = movieArray.getJSONObject(num);
+            String posterPath = movieObject.getString(POSTER_PATH);
+            String movieTitle = movieObject.getString(TITLE);
+
+            HashMap<String,String> resultSet = new HashMap<>();
+            resultSet.put(POSTER_PATH,posterPath);
+            resultSet.put(TITLE,movieTitle);
+
+            Log.v(POSTER_PATH,posterPath);
+            Log.v(TITLE,movieTitle);
+
+            return resultSet;
+        }
     }
+
+
+
 }
