@@ -1,5 +1,6 @@
 package w3sw.popularmovieapp;
 
+import android.content.Context;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.support.v4.app.Fragment;
@@ -11,6 +12,8 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+import android.widget.GridView;
 import android.widget.ImageView;
 
 import com.squareup.picasso.Picasso;
@@ -25,6 +28,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 
@@ -84,7 +88,10 @@ public class MainActivityFragment extends Fragment {
         fetchMovie.execute("/movie/popular");
     }
 
-    public class FetchMovie extends AsyncTask<String, Void, HashMap<String,String>> {
+    public class FetchMovie extends AsyncTask<String, Void,
+            ArrayList<HashMap<String,String>> > {
+        JSONArray movieArray;
+
         // These are the names of the JSON objects that need to be extracted.
         final String RESULT = "results";
         final String POSTER_PATH = "poster_path";
@@ -103,7 +110,7 @@ public class MainActivityFragment extends Fragment {
         final String VOTE_AVERAGE = "vote_average";
 
         @Override
-        protected HashMap<String,String> doInBackground(String... params) {
+        protected ArrayList<HashMap<String,String>> doInBackground(String... params) {
 
             //These two need to be declared outside the try/catch
             //so they can be closed in the finally block
@@ -142,7 +149,7 @@ public class MainActivityFragment extends Fragment {
 
                 String line;
                 while ((line = reader.readLine()) != null){
-                    buffer.append(line +"\n");
+                    buffer.append(line).append("\n");
                 }
                 if(buffer.length() ==0){
                     // Stream was empty.  No point in parsing.
@@ -170,7 +177,7 @@ public class MainActivityFragment extends Fragment {
                 }
             }
             try {
-                return GetMovieDataFromJson(jsonresult,0);
+                return GetMovieDataFromJson(jsonresult);
             } catch (JSONException e) {
                 e.printStackTrace();
             }
@@ -179,43 +186,95 @@ public class MainActivityFragment extends Fragment {
 
 
         @Override
-        protected void onPostExecute(HashMap<String,String> resultSet) {
-            Log.v("Result HashMap",resultSet.get(POSTER_PATH));
+        protected void onPostExecute(ArrayList<HashMap<String,String>> resultSet) {
             try {
-                GetMoviePoster(resultSet.get(POSTER_PATH), 0);
+                GetMoviePosterLink(resultSet);
             } catch (JSONException e) {
                 e.printStackTrace();
             }
         }
 
-        private void GetMoviePoster(String path, int i) throws JSONException {
+        private ArrayList<Uri> GetMoviePosterLink(ArrayList<HashMap<String,String>> arrayList) throws JSONException {
             final String POSTER_BASE_URL = "http://image.tmdb.org/t/p";
             final String SIZE = "w185";
-            //Construct URL for the query search
-            Uri posterUrl = Uri.parse(POSTER_BASE_URL).buildUpon()
-                    .appendPath(SIZE)
-                    .appendEncodedPath(path)
-                    .build();
-            Log.v("Poster Link:",posterUrl.toString());
-            //Display the movie poster to the ImageView
-            ImageView posterView = (ImageView)getActivity().findViewById(R.id.movie_poster_main);
-            Picasso.with(getActivity()).load(posterUrl)
-                    .into(posterView);
+            ArrayList<Uri> posterUriArray=new ArrayList<>();
+            Log.v("Array List Size", String.valueOf(arrayList.size()));
+            //get the url path for each movie and put it to its ImageView
+            for(int i=0; i<arrayList.size();i++){
+                //Construct URL for the query search
+                Uri posterUrl = Uri.parse(POSTER_BASE_URL).buildUpon()
+                        .appendPath(SIZE)
+                        .appendEncodedPath(arrayList.get(i).get(POSTER_PATH))
+                        .build();
+                Log.v("Poster Link:", posterUrl.toString());
+                posterUriArray.add(posterUrl);
+            }
+            return posterUriArray;
         }
-        private HashMap<String,String> GetMovieDataFromJson(String movieJsonString, int num)throws JSONException{
+
+
+        private ArrayList<HashMap<String,String>> GetMovieDataFromJson(String movieJsonString)throws JSONException{
 
             JSONObject jsonObject = new JSONObject(movieJsonString);
-            JSONArray movieArray = jsonObject.getJSONArray(RESULT);
-            JSONObject movieObject = movieArray.getJSONObject(num);
-            //Parsing Json to get the poster path and title
-            String posterPath = movieObject.getString(POSTER_PATH);
-            String movieTitle = movieObject.getString(TITLE);
+            movieArray = jsonObject.getJSONArray(RESULT);
+            ArrayList<HashMap<String,String>> resultArray = new ArrayList<>();
 
-            HashMap<String,String> resultSet = new HashMap<>();
-            resultSet.put(POSTER_PATH, posterPath);
-            resultSet.put(TITLE,movieTitle);
-            Log.v("Movie Title: ", resultSet.get(TITLE));
-            return resultSet;
+            //get the poster path and movie title for each movie
+            for (int i = 0; i <movieArray.length(); i++){
+                JSONObject movieObject = movieArray.getJSONObject(i);
+
+                //Parsing Json to get the poster path and title
+                String posterPath = movieObject.getString(POSTER_PATH);
+                String movieTitle = movieObject.getString(TITLE);
+
+                //Put the data to the HashMap
+                HashMap<String,String> resultSet = new HashMap<>();
+                resultSet.put(POSTER_PATH, posterPath);
+                resultSet.put(TITLE,movieTitle);
+                resultArray.add(resultSet);
+
+
+                Log.v("Movie Title: ", resultArray.get(i).get(TITLE));
+            }
+            return resultArray;
+        }
+
+        private class ImageAdapter extends BaseAdapter{
+            private Context mContext;
+            public ImageAdapter(Context c){
+                mContext = c;
+            }
+
+            @Override
+            public int getCount() {
+                return movieArray.length();
+            }
+
+            @Override
+            public Object getItem(int position) {
+                return null;
+            }
+
+            @Override
+            public long getItemId(int position) {
+                return 0;
+            }
+
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                ImageView imageView;
+                if(convertView == null){
+                    //If its not recycled, initialize some attribute
+                    imageView = new ImageView(mContext);
+                    imageView.setLayoutParams(new GridView.LayoutParams(85, 85));
+                    imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                    imageView.setPadding(8,8,8,8);
+                }else{
+                    imageView = (ImageView)convertView;
+                }
+                //TODO:set the image resource using movie poster
+                return imageView;
+            }
         }
     }
 
