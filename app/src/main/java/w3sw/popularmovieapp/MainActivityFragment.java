@@ -12,6 +12,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
@@ -30,6 +31,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.zip.Inflater;
 
 
 /**Main activity consist of grid layout that diplay the particular movie poster
@@ -69,6 +71,12 @@ public class MainActivityFragment extends Fragment {
     }
 
     @Override
+    public void onStart() {
+        UpdateMovie();
+        super.onStart();
+    }
+
+    @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
         inflater.inflate(R.menu.main_fragment, menu);
     }
@@ -93,6 +101,7 @@ public class MainActivityFragment extends Fragment {
         JSONArray movieArray;
 
         // These are the names of the JSON objects that need to be extracted.
+        // Its include the unused name for the expansion purpose
         final String RESULT = "results";
         final String POSTER_PATH = "poster_path";
         final String ADULT = "adult";
@@ -187,11 +196,15 @@ public class MainActivityFragment extends Fragment {
 
         @Override
         protected void onPostExecute(ArrayList<HashMap<String,String>> resultSet) {
+            GridView gridView= (GridView)getActivity().findViewById(R.id.fragment_main);
+            ArrayList<Uri> posterUrl = null;
             try {
-                GetMoviePosterLink(resultSet);
+                posterUrl = GetMoviePosterLink(resultSet);
             } catch (JSONException e) {
                 e.printStackTrace();
             }
+            ImageAdapter imageAdapter = new ImageAdapter(getActivity(),posterUrl);
+            gridView.setAdapter(imageAdapter);
         }
 
         private ArrayList<Uri> GetMoviePosterLink(ArrayList<HashMap<String,String>> arrayList) throws JSONException {
@@ -241,8 +254,11 @@ public class MainActivityFragment extends Fragment {
 
         private class ImageAdapter extends BaseAdapter{
             private Context mContext;
-            public ImageAdapter(Context c){
-                mContext = c;
+            private ArrayList<Uri> url;
+
+            public ImageAdapter(Context context, ArrayList<Uri> imageUrl){
+                this.mContext = context;
+                this.url = imageUrl;
             }
 
             @Override
@@ -264,15 +280,15 @@ public class MainActivityFragment extends Fragment {
             public View getView(int position, View convertView, ViewGroup parent) {
                 ImageView imageView;
                 if(convertView == null){
-                    //If its not recycled, initialize some attribute
                     imageView = new ImageView(mContext);
-                    imageView.setLayoutParams(new GridView.LayoutParams(85, 85));
+                    imageView.setLayoutParams(new GridView.LayoutParams(85,85));
                     imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
                     imageView.setPadding(8,8,8,8);
-                }else{
-                    imageView = (ImageView)convertView;
+                } else{
+                    imageView = (ImageView) convertView;
                 }
-                //TODO:set the image resource using movie poster
+                Picasso.with(mContext).load(url.get(position))
+                        .fit().into(imageView);
                 return imageView;
             }
         }
