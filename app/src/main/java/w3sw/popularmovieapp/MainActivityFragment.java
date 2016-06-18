@@ -1,8 +1,10 @@
 package w3sw.popularmovieapp;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.os.Bundle;
 import android.util.Log;
@@ -13,7 +15,6 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
-import android.widget.BaseAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
 
@@ -31,7 +32,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.zip.Inflater;
 
 
 /**Main activity consist of grid layout that diplay the particular movie poster
@@ -92,8 +92,13 @@ public class MainActivityFragment extends Fragment {
     }
 
     public void UpdateMovie(){
+        String search_type = "search_type";
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        String searchParameter = prefs.getString(search_type
+                ,getString(R.string.search_setting_default));
+        Log.v("Search Parameter: ",searchParameter);
         FetchMovie fetchMovie = new FetchMovie();
-        fetchMovie.execute("/movie/popular");
+        fetchMovie.execute(searchParameter.toLowerCase());
     }
 
     public class FetchMovie extends AsyncTask<String, Void,
@@ -126,22 +131,23 @@ public class MainActivityFragment extends Fragment {
             HttpURLConnection urlConnection = null;
             BufferedReader reader = null;
 
-            //Will contain the string of the json result
-            String jsonresult = null;
+
 
             //URL query parameter
-            final String POPULAR_MOVIE = "/movie/popular";
-            final String TOP_RATED_MOVIE = "/movie/top_rated";
-
             final String API_KEY = "122c7816bb3759bd56be1d03a02d6db6";
-            final String MOVIE_BASE_URL = "https://api.themoviedb.org/3";
+            final String MOVIE_BASE_URL = "https://api.themoviedb.org/3/movie/";
+
+            //Will contain the string of the json result
+            String jsonresult = null;
 
             //Construct URL for the query search
             Uri builtUri = Uri.parse(MOVIE_BASE_URL + params[0]).buildUpon()
                     .appendQueryParameter("api_key", API_KEY)
                     .build();
+
             try {
                 URL url = new URL(builtUri.toString());
+                Log.v("URL link",url.toString());
                 //Crete the request to themoviedb and open the connection
                 urlConnection = (HttpURLConnection) url.openConnection();
                 urlConnection.setRequestMethod("GET");
@@ -289,7 +295,7 @@ public class MainActivityFragment extends Fragment {
                 Picasso
                         .with(mContext)
                         .load(url.get(position))
-                        .resize(200,400)
+                        .resize(200, 400)
                         .into(imageView);
                 return imageView;
             }
