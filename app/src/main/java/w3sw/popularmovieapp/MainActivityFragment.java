@@ -252,13 +252,16 @@ public class MainActivityFragment extends Fragment {
             return resultArray;
         }
 
-        private class ImageAdapter extends BaseAdapter{
+        private class ImageAdapter extends ArrayAdapter{
             private Context mContext;
             private ArrayList<Uri> url;
+            LayoutInflater inflater;
 
             public ImageAdapter(Context context, ArrayList<Uri> imageUrl){
+                super(context,R.layout.movie_poster,imageUrl);
                 this.mContext = context;
                 this.url = imageUrl;
+                inflater = LayoutInflater.from(context);
             }
 
             @Override
@@ -278,17 +281,16 @@ public class MainActivityFragment extends Fragment {
 
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
-                ImageView imageView;
-                if(convertView == null){
-                    imageView = new ImageView(mContext);
-                    imageView.setLayoutParams(new GridView.LayoutParams(85,85));
-                    imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                    imageView.setPadding(8,8,8,8);
-                } else{
-                    imageView = (ImageView) convertView;
+                ImageView imageView = (ImageView) convertView;
+                if(imageView == null){
+                    imageView = (ImageView) inflater.inflate(R.layout.movie_poster,parent,false);
                 }
-                Picasso.with(mContext).load(url.get(position))
-                        .fit().into(imageView);
+                imageView.setVisibility(View.VISIBLE);
+                Picasso
+                        .with(mContext)
+                        .load(url.get(position))
+                        .resize(200,400)
+                        .into(imageView);
                 return imageView;
             }
         }
