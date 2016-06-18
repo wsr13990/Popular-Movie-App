@@ -1,6 +1,7 @@
 package w3sw.popularmovieapp;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -14,9 +15,11 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
+import android.widget.Toast;
 
 import com.squareup.picasso.Picasso;
 
@@ -54,6 +57,26 @@ import java.util.HashMap;
 
 public class MainActivityFragment extends Fragment {
     public static final String LOG_TAG = MainActivityFragment.class.toString();
+    ArrayList<HashMap<String,String>> resultArray;
+    ArrayList<Uri> posterUriArray;
+
+    // These are the names of the JSON objects that need to be extracted.
+    // Its include the unused name for the expansion purpose
+    final String RESULT = "results";
+    final String POSTER_PATH = "poster_path";
+    final String ADULT = "adult";
+    final String OVERVIEW = "overview";
+    final String RELEASE_DATE = "release_date";
+    final String GENRE_IDS = "genre_ids";
+    final String ID = "id";
+    final String ORIGINAL_TITLE = "original_title";
+    final String ORIGINAL_LANGUAGE = "original_language";
+    final String TITLE = "title";
+    final String BACKDROP_PATH ="backdrop_path";
+    final String POPULARITY = "popularity";
+    final String VOTE_COUNT = "vote_count";
+    final String VIDEO = "video";
+    final String VOTE_AVERAGE = "vote_average";
 
     public MainActivityFragment() {
     }
@@ -73,7 +96,37 @@ public class MainActivityFragment extends Fragment {
     @Override
     public void onStart() {
         UpdateMovie();
+        GridView gridView = (GridView) getActivity().findViewById(R.id.fragment_main);
+        gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                String title = resultArray.get(position).get(TITLE);
+                Toast.makeText(getActivity(),title,Toast.LENGTH_SHORT).show();
+                ArrayList<String> extra = putExtra(position);
+
+                Intent movieDetailIntent = new Intent(getActivity(),DetailMovieActivity.class)
+                        .putExtra(Intent.EXTRA_TEXT,extra);
+                startActivity(movieDetailIntent);
+            }
+        });
         super.onStart();
+    }
+
+    public ArrayList<String> putExtra(int position){
+        String title = resultArray.get(position).get(TITLE);
+        String poster = posterUriArray.get(position).toString();
+        String movieYear = resultArray.get(position).get(RELEASE_DATE);
+        String synopis = resultArray.get(position).get(OVERVIEW);
+        String rating = resultArray.get(position).get(VOTE_AVERAGE);
+
+        ArrayList<String> extra = new ArrayList<String>();
+        extra.add(title);
+        extra.add(poster);
+        extra.add(movieYear);
+        extra.add(synopis);
+        extra.add(rating);
+
+        return extra;
     }
 
     @Override
@@ -104,24 +157,6 @@ public class MainActivityFragment extends Fragment {
     public class FetchMovie extends AsyncTask<String, Void,
             ArrayList<HashMap<String,String>> > {
         JSONArray movieArray;
-
-        // These are the names of the JSON objects that need to be extracted.
-        // Its include the unused name for the expansion purpose
-        final String RESULT = "results";
-        final String POSTER_PATH = "poster_path";
-        final String ADULT = "adult";
-        final String OVERVIEW = "overview";
-        final String RELEASE_DATE = "release_date";
-        final String GENRE_IDS = "genre_ids";
-        final String ID = "id";
-        final String ORIGINAL_TITLE = "original_title";
-        final String ORIGINAL_LANGUAGE = "original_language";
-        final String TITLE = "title";
-        final String BACKDROP_PATH ="backdrop_path";
-        final String POPULARITY = "popularity";
-        final String VOTE_COUNT = "vote_count";
-        final String VIDEO = "video";
-        final String VOTE_AVERAGE = "vote_average";
 
         @Override
         protected ArrayList<HashMap<String,String>> doInBackground(String... params) {
@@ -216,7 +251,7 @@ public class MainActivityFragment extends Fragment {
         private ArrayList<Uri> GetMoviePosterLink(ArrayList<HashMap<String,String>> arrayList) throws JSONException {
             final String POSTER_BASE_URL = "http://image.tmdb.org/t/p";
             final String SIZE = "w185";
-            ArrayList<Uri> posterUriArray=new ArrayList<>();
+            posterUriArray=new ArrayList<>();
             Log.v("Array List Size", String.valueOf(arrayList.size()));
             //get the url path for each movie and put it to its ImageView
             for(int i=0; i<arrayList.size();i++){
@@ -236,7 +271,7 @@ public class MainActivityFragment extends Fragment {
 
             JSONObject jsonObject = new JSONObject(movieJsonString);
             movieArray = jsonObject.getJSONArray(RESULT);
-            ArrayList<HashMap<String,String>> resultArray = new ArrayList<>();
+            resultArray = new ArrayList<>();
 
             //get the poster path and movie title for each movie
             for (int i = 0; i <movieArray.length(); i++){
@@ -245,11 +280,17 @@ public class MainActivityFragment extends Fragment {
                 //Parsing Json to get the poster path and title
                 String posterPath = movieObject.getString(POSTER_PATH);
                 String movieTitle = movieObject.getString(TITLE);
+                String movieSynopsis = movieObject.getString(OVERVIEW);
+                String releaseDate = movieObject.getString(RELEASE_DATE);
+                String rating = movieObject.getString(VOTE_AVERAGE);
 
                 //Put the data to the HashMap
                 HashMap<String,String> resultSet = new HashMap<>();
                 resultSet.put(POSTER_PATH, posterPath);
                 resultSet.put(TITLE,movieTitle);
+                resultSet.put(OVERVIEW,movieSynopsis);
+                resultSet.put(RELEASE_DATE,releaseDate);
+                resultSet.put(VOTE_AVERAGE,rating);
                 resultArray.add(resultSet);
 
 
@@ -295,7 +336,7 @@ public class MainActivityFragment extends Fragment {
                 Picasso
                         .with(mContext)
                         .load(url.get(position))
-                        .resize(200, 400)
+                        .fit()
                         .into(imageView);
                 return imageView;
             }
